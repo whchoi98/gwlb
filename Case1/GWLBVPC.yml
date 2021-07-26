@@ -1,0 +1,678 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "VPC Parameters"
+        Parameters:
+         - AvailabilityZoneA
+         - AvailabilityZoneB
+         - VPCCIDRBlock
+         - PublicSubnetABlock
+         - PublicSubnetBBlock
+         - InstanceType
+
+################################################################################################
+# Create-Parameters : AZ,VPC CIDR Blcok, Public, Private Subnet Block, InstanceType Parameters #
+################################################################################################
+
+Parameters:
+  AvailabilityZoneA:
+  AvailabilityZoneA:
+    Description: "Choose AZ1 for your VPC."
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1a"
+#    Default: "ap-northeast-2a"
+  AvailabilityZoneB:
+    Description: "Choose AZ2 for your VPC."
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1c"
+#    Default: "ap-northeast-2c"
+  VPCCIDRBlock:
+    Type: String
+    Default: 10.254.0.0/16
+    Description: "The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range."
+
+  PublicSubnetABlock:
+    Type: String
+    Default: 10.254.11.0/24
+    Description: "CidrBlock for AZ A public subnet A within the VPC"   
+
+  PublicSubnetBBlock:
+    Type: String
+    Default: 10.254.12.0/24
+    Description: "CidrBlock for AZ B public subnet B within the VPC"
+
+  InstanceType:
+    Type: String
+    Default: t3.small
+    Description: EC2 Instance Type for the VPC.
+
+################################
+# Create-Keypair : EC2 Keypair #
+################################
+
+  KeyPair:
+    Description: "Keypair to access the EC2 Instance"
+    Type: "AWS::EC2::KeyPair::KeyName"
+    Default: "Your KeyPair"
+
+##########################
+# Create-AMI: EC2 AMI ID #
+##########################
+
+  LatestAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+
+###############################
+# Create-Resource: Resource   #
+###############################
+
+Resources:
+
+#####################
+# Create-VPC : VPC #
+#####################
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDRBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}'
+        - Key: project
+          Value: !Sub '${AWS::StackName}'
+
+###########################################
+# Create-IGW: Create VPC InternetGateway #
+###########################################
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-IGW'
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+###############################################
+# Create-Public-Subnet: VPC Public_Subnet_a,b #
+###############################################
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetABlock
+      AvailabilityZone: !Ref AvailabilityZoneA
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-Subnet-A'
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetBBlock
+      AvailabilityZone: !Ref AvailabilityZoneB
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-Subnet-B'
+
+################################################
+# Create-RouteTable: VPCPublic Route Table    #
+################################################
+
+  PublicSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-RT'
+
+  PublicRouteTable:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  PublicSubnetRouteTableBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+#####################################
+# Create-GWLB and GWLB Target Group #
+#####################################
+
+  GWLB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: GWLB
+      Type: gateway
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-GWLB'
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: GWLB-TG
+      Port: 6081
+      Protocol: GENEVE
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: 20
+      VpcId: !Ref VPC
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      TargetType: instance
+      Targets:
+        - Id: !Ref ApplianceInstance1
+        - Id: !Ref ApplianceInstance2
+        - Id: !Ref ApplianceInstance3
+        - Id: !Ref ApplianceInstance4
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-GWLB-Target-Group'
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref GWLB
+
+#################################################
+# Create-VPC Endpoint Service: For VPC Endpoint #
+#################################################
+
+  VpcEndpointService:
+    Type: AWS::EC2::VPCEndpointService
+    Properties:
+      GatewayLoadBalancerArns:
+        - !Ref GWLB
+      AcceptanceRequired: false
+
+###############################################
+# Create-SSM: Create Appliance ServerRole     #
+###############################################
+  ApplianceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+  AppliancePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AppServer
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:DescribeNetworkInterfaces
+            Resource: '*'
+      Roles:
+        - !Ref ApplianceRole
+
+  ApplianceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ApplianceRole
+
+###############################################################################
+# Create-Security-Group: VPC Security Group - HTTP, HTTPS, ICMP , SSH Permit #
+###############################################################################
+
+  ApplianceEC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open-up ports for ICMP and SSH,HTTP/S,UDP 6081 from All network
+      GroupName:  ApplianceEC2SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: 0.0.0.0/0
+          FromPort: "-1"
+          ToPort: "-1"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "22"
+          ToPort: "22"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "80"
+          ToPort: "80"
+        - IpProtocol: udp
+          CidrIp: 0.0.0.0/0
+          FromPort: '6081'
+          ToPort: '6081'
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "443"
+          ToPort: "443"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Appliance-SG'
+
+########################################
+# Create-EC2: VPC Appliance EC2 Create #
+########################################
+
+  ApplianceInstance1:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetA
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      PrivateIpAddress: 10.254.11.101
+      SecurityGroupIds: 
+        - Ref: ApplianceEC2SG
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref ApplianceProfile
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 10
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.11.101'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update
+            sudo yum -y install yum-utils
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;      
+  
+            # Enable IP Forwarding:
+            sudo sysctl -w net.ipv4.ip_forward=1
+  
+            # Environment variable configuration
+            curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document > /home/ec2-user/iid
+            export instance_interface=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
+            export instance_vpcid=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/$instance_interface/vpc-id)
+            export instance_az=$(cat /home/ec2-user/iid |grep 'availability' | awk -F': ' '{print $2}' | awk -F',' '{print $1}')
+            export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+  
+            # Webpage configuration
+            sudo systemctl start httpd
+            sudo systemctl enable httpd
+            sudo chown -R $USER:$USER /var/www
+            touch /var/www/html/index.html
+            sudo echo "<h1>Gateway Load Balancer Test:</h1>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Public IP is: $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Private IP is: $(curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Host Name is: $(curl -s http://169.254.169.254/latest/meta-data/hostname/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-id is: $(curl -s http://169.254.169.254/latest/meta-data/instance-id/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-type is: $(curl -s http://169.254.169.254/latest/meta-data/instance-type)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My placement/availability-zone is: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</h2></html>" >> /var/www/html/index.html 
+            sudo systemctl restart httpd
+  
+            # Start and configure iptables
+            sudo systemctl enable iptables
+            sudo systemctl start iptables
+            
+            # Configuration below allows allows all traffic
+            # Set the default policies for each of the built-in chains to ACCEPT
+            sudo iptables -P INPUT ACCEPT
+            sudo iptables -P FORWARD ACCEPT
+            sudo iptables -P OUTPUT ACCEPT
+  
+            # Flush the nat and mangle tables, flush all chains (-F), and delete all non-default chains (-X)
+            sudo iptables -t nat -F
+            sudo iptables -t mangle -F
+            sudo iptables -F
+            sudo iptables -X
+  
+            # Configure nat table to hairpin traffic back to GWLB
+            sudo iptables -t nat -A PREROUTING -p udp -s $gwlb_ip -d $instance_ip -i eth0 -j DNAT --to-destination $gwlb_ip:6081
+            sudo iptables -t nat -A POSTROUTING -p udp --dport 6081 -s $gwlb_ip -d $gwlb_ip -o eth0 -j MASQUERADE
+  
+            # Save iptables
+            sudo service iptables save         
+  
+  ApplianceInstance2:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetA
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      PrivateIpAddress: 10.254.11.102
+      SecurityGroupIds: 
+        - Ref: ApplianceEC2SG
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref ApplianceProfile
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 10
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.11.102'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update
+            sudo yum -y install yum-utils
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;       
+  
+            # Enable IP Forwarding:
+            sudo sysctl -w net.ipv4.ip_forward=1
+  
+            # Environment variable configuration
+            curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document > /home/ec2-user/iid
+            export instance_interface=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
+            export instance_vpcid=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/$instance_interface/vpc-id)
+            export instance_az=$(cat /home/ec2-user/iid |grep 'availability' | awk -F': ' '{print $2}' | awk -F',' '{print $1}')
+            export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+  
+            # Webpage configuration
+            sudo systemctl start httpd
+            sudo systemctl enable httpd
+            sudo chown -R $USER:$USER /var/www
+            touch /var/www/html/index.html
+            sudo echo "<h1>Gateway Load Balancer Test:</h1>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Public IP is: $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Private IP is: $(curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Host Name is: $(curl -s http://169.254.169.254/latest/meta-data/hostname/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-id is: $(curl -s http://169.254.169.254/latest/meta-data/instance-id/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-type is: $(curl -s http://169.254.169.254/latest/meta-data/instance-type)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My placement/availability-zone is: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</h2></html>" >> /var/www/html/index.html 
+            sudo systemctl restart httpd
+  
+            # Start and configure iptables
+            sudo systemctl enable iptables
+            sudo systemctl start iptables
+            
+            # Configuration below allows allows all traffic
+            # Set the default policies for each of the built-in chains to ACCEPT
+            sudo iptables -P INPUT ACCEPT
+            sudo iptables -P FORWARD ACCEPT
+            sudo iptables -P OUTPUT ACCEPT
+  
+            # Flush the nat and mangle tables, flush all chains (-F), and delete all non-default chains (-X)
+            sudo iptables -t nat -F
+            sudo iptables -t mangle -F
+            sudo iptables -F
+            sudo iptables -X
+  
+            # Configure nat table to hairpin traffic back to GWLB
+            sudo iptables -t nat -A PREROUTING -p udp -s $gwlb_ip -d $instance_ip -i eth0 -j DNAT --to-destination $gwlb_ip:6081
+            sudo iptables -t nat -A POSTROUTING -p udp --dport 6081 -s $gwlb_ip -d $gwlb_ip -o eth0 -j MASQUERADE
+  
+            # Save iptables
+            sudo service iptables save         
+  
+  ApplianceInstance3:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetB
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      PrivateIpAddress: 10.254.12.101
+      SecurityGroupIds: 
+        - Ref: ApplianceEC2SG
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref ApplianceProfile
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 10
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.12.101'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update
+            sudo yum -y install yum-utils
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;
+  
+            # Enable IP Forwarding:
+            sudo sysctl -w net.ipv4.ip_forward=1
+  
+            # Environment variable configuration
+            curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document > /home/ec2-user/iid
+            export instance_interface=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
+            export instance_vpcid=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/$instance_interface/vpc-id)
+            export instance_az=$(cat /home/ec2-user/iid |grep 'availability' | awk -F': ' '{print $2}' | awk -F',' '{print $1}')
+            export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+  
+            # Webpage configuration
+            sudo systemctl start httpd
+            sudo systemctl enable httpd
+            sudo chown -R $USER:$USER /var/www
+            touch /var/www/html/index.html
+            sudo echo "<h1>Gateway Load Balancer Test:</h1>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Public IP is: $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Private IP is: $(curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Host Name is: $(curl -s http://169.254.169.254/latest/meta-data/hostname/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-id is: $(curl -s http://169.254.169.254/latest/meta-data/instance-id/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-type is: $(curl -s http://169.254.169.254/latest/meta-data/instance-type)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My placement/availability-zone is: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</h2></html>" >> /var/www/html/index.html 
+            sudo systemctl restart httpd
+  
+            # Start and configure iptables
+            sudo systemctl enable iptables
+            sudo systemctl start iptables
+            
+            # Configuration below allows allows all traffic
+            # Set the default policies for each of the built-in chains to ACCEPT
+            sudo iptables -P INPUT ACCEPT
+            sudo iptables -P FORWARD ACCEPT
+            sudo iptables -P OUTPUT ACCEPT
+  
+            # Flush the nat and mangle tables, flush all chains (-F), and delete all non-default chains (-X)
+            sudo iptables -t nat -F
+            sudo iptables -t mangle -F
+            sudo iptables -F
+            sudo iptables -X
+  
+            # Configure nat table to hairpin traffic back to GWLB
+            sudo iptables -t nat -A PREROUTING -p udp -s $gwlb_ip -d $instance_ip -i eth0 -j DNAT --to-destination $gwlb_ip:6081
+            sudo iptables -t nat -A POSTROUTING -p udp --dport 6081 -s $gwlb_ip -d $gwlb_ip -o eth0 -j MASQUERADE
+  
+            # Save iptables
+            sudo service iptables save         
+  
+  ApplianceInstance4:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetB
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      PrivateIpAddress: 10.254.12.102
+      SecurityGroupIds: 
+        - Ref: ApplianceEC2SG
+      ImageId: !Ref LatestAmiId      
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref ApplianceProfile
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 10
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.12.102'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update
+            sudo yum -y install yum-utils
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;       
+  
+            # Enable IP Forwarding:
+            sudo sysctl -w net.ipv4.ip_forward=1
+  
+            # Environment variable configuration
+            curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document > /home/ec2-user/iid
+            export instance_interface=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
+            export instance_vpcid=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/$instance_interface/vpc-id)
+            export instance_az=$(cat /home/ec2-user/iid |grep 'availability' | awk -F': ' '{print $2}' | awk -F',' '{print $1}')
+            export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
+            export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+  
+            # Webpage configuration
+            sudo systemctl start httpd
+            sudo systemctl enable httpd
+            sudo chown -R $USER:$USER /var/www
+            touch /var/www/html/index.html
+            sudo echo "<h1>Gateway Load Balancer Test:</h1>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Public IP is: $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Private IP is: $(curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)</h2></html>" >> /var/www/html/index.html
+            sudo echo "<html><h2>My Host Name is: $(curl -s http://169.254.169.254/latest/meta-data/hostname/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-id is: $(curl -s http://169.254.169.254/latest/meta-data/instance-id/)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My instance-type is: $(curl -s http://169.254.169.254/latest/meta-data/instance-type)</h2></html>" >> /var/www/html/index.html 
+            sudo echo "<html><h2>My placement/availability-zone is: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</h2></html>" >> /var/www/html/index.html 
+            sudo systemctl restart httpd
+  
+            # Start and configure iptables
+            sudo systemctl enable iptables
+            sudo systemctl start iptables
+            
+            # Configuration below allows allows all traffic
+            # Set the default policies for each of the built-in chains to ACCEPT
+            sudo iptables -P INPUT ACCEPT
+            sudo iptables -P FORWARD ACCEPT
+            sudo iptables -P OUTPUT ACCEPT
+  
+            # Flush the nat and mangle tables, flush all chains (-F), and delete all non-default chains (-X)
+            sudo iptables -t nat -F
+            sudo iptables -t mangle -F
+            sudo iptables -F
+            sudo iptables -X
+  
+            # Configure nat table to hairpin traffic back to GWLB
+            sudo iptables -t nat -A PREROUTING -p udp -s $gwlb_ip -d $instance_ip -i eth0 -j DNAT --to-destination $gwlb_ip:6081
+            sudo iptables -t nat -A POSTROUTING -p udp --dport 6081 -s $gwlb_ip -d $gwlb_ip -o eth0 -j MASQUERADE
+  
+            # Save iptables
+            sudo service iptables save         
+  
+###############
+# VPC Outputs #
+###############
+Outputs:
+  VPC:
+    Description: VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}"
+
+  PublicSubnetA:
+    Description: PublicSubnetA
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-Public-Subnet-A"
+
+  PublicSubnetB:
+    Description: PublicSubnetB
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-Public-Subnet-B"
+  
+  Appliance1Ip:
+    Description: Appliance1 Public IP
+    Value: !GetAtt ApplianceInstance1.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-Appliance1Ip"
+
+  Appliance2Ip:
+    Description: Appliance2 Public IP
+    Value: !GetAtt ApplianceInstance2.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-Appliance2Ip"  
+
+  Appliance3Ip:
+    Description: Appliance3 Public IP
+    Value: !GetAtt ApplianceInstance3.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-Appliance3Ip"  
+
+  Appliance4Ip:
+    Description: Appliance4 Public IP
+    Value: !GetAtt ApplianceInstance4.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-Appliance4Ip"
+
