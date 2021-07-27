@@ -57,20 +57,20 @@ Resources:
 # Create-TransitGateWay-RouteTable #
 ####################################
 
-  TransitGatewayRouteTableE2W:
+  TransitGatewayRouteTableVPCIN:
     Type: "AWS::EC2::TransitGatewayRouteTable"
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-RT-East-To-West'
+          Value: !Sub '${AWS::StackName}-RT-VPC-IN'
       TransitGatewayId: !Ref TransitGatewayGWLB
 
-  TransitGatewayRouteTableN2S:
+  TransitGatewayRouteTableVPCOUT:
     Type: "AWS::EC2::TransitGatewayRouteTable"
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-RT-North-To-South'
+          Value: !Sub '${AWS::StackName}-RT-VPC-OUT'
       TransitGatewayId: !Ref TransitGatewayGWLB
 
 ##############################################
@@ -146,53 +146,53 @@ Resources:
     Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentN2SVPC
-      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableE2W
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
 
   TransitGatewayRouteTableAssociationVPC01:
     Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC01
-      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableN2S
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
 
   TransitGatewayRouteTableAssociationVPC02:
     Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC02
-      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableN2S
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
 
 #  TransitGatewayRouteTableAssociationVPC03:
 #    Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
 #    Properties:
 #      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC03
-#      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableN2S
+#      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
 
   TransitGatewayRouteN2S01:
     Type: AWS::EC2::TransitGatewayRoute
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentN2SVPC
       DestinationCidrBlock: !Ref DefaultRouteBlock
-      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableN2S
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
 
   TransitGatewayRouteVPC01:
     Type: AWS::EC2::TransitGatewayRoute
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC01
       DestinationCidrBlock: !Ref VPC01CIDRBlock
-      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableE2W
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
 
   TransitGatewayRouteVPC02:
     Type: AWS::EC2::TransitGatewayRoute
     Properties:
       TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC02
       DestinationCidrBlock: !Ref VPC02CIDRBlock
-      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableE2W
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
 
 #  TransitGatewayRouteVPC03:
 #    Type: AWS::EC2::TransitGatewayRoute
 #    Properties:
 #      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC03
 #      DestinationCidrBlock: !Ref VPC03CIDRBlock
-#      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableE2W
+#      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
 
 ### N2SVPC route table configuration
 
