@@ -945,7 +945,7 @@ Outputs:
       Name: !Sub "${AWS::StackName}-PrivateBInstnce2ID"
 
   ALBDNSName:
-    Description:"ALB.DNSName/ec2meta-webpage/index.php"
+    Description: "ALB.DNSName/ec2meta-webpage/index.php"
     Value: !GetAtt InternetALB.DNSName
     Export:
       Name: !Sub "${AWS::StackName}-alb-dnsname"
