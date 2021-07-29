@@ -11,6 +11,9 @@ Metadata:
          - VPCCIDRBlock
          - PublicSubnetABlock
          - PublicSubnetBBlock
+         - PrivateSubnetABlock
+         - PrivateSubnetBBlock
+         - DefaultRouteBlock
          - InstanceType
 
 ################################################################################################
@@ -19,16 +22,15 @@ Metadata:
 
 Parameters:
   AvailabilityZoneA:
-  AvailabilityZoneA:
     Description: "Choose AZ1 for your VPC."
     Type: AWS::EC2::AvailabilityZone::Name
     Default: "ap-northeast-1a"
-#    Default: "ap-northeast-2a"
+
   AvailabilityZoneB:
     Description: "Choose AZ2 for your VPC."
     Type: AWS::EC2::AvailabilityZone::Name
     Default: "ap-northeast-1c"
-#    Default: "ap-northeast-2c"
+
   VPCCIDRBlock:
     Type: String
     Default: 10.254.0.0/16
@@ -43,6 +45,21 @@ Parameters:
     Type: String
     Default: 10.254.12.0/24
     Description: "CidrBlock for AZ B public subnet B within the VPC"
+
+  PrivateSubnetABlock:
+    Type: String
+    Default: 10.254.21.0/24
+    Description: "CidrBlock for AZ A public subnet A within the VPC"   
+
+  PrivateSubnetBBlock:
+    Type: String
+    Default: 10.254.22.0/24
+    Description: "CidrBlock for AZ B public subnet B within the VPC"
+
+  DefaultRouteBlock:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: "Enter desired CIDR to Default route"
 
   InstanceType:
     Type: String
@@ -105,7 +122,54 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
+#############################################
+# Create-NATGW: Create VPC NATGateway #
+#############################################
+  NatGatewayAEIP:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-NATGW-A-EIP'
 
+  NatGatewayA:
+    DependsOn:
+    - NatGatewayAEIP
+    - PublicSubnetA
+    - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayAEIP.AllocationId'
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NATGW-A'
+
+  NatGatewayBEIP:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-NATGW-B-EIP'
+
+  NatGatewayB:
+    DependsOn:
+    - NatGatewayBEIP
+    - PublicSubnetB
+    - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayBEIP.AllocationId'
+      SubnetId: !Ref PublicSubnetB
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NATGW-B'
 ###############################################
 # Create-Public-Subnet: VPC Public_Subnet_a,b #
 ###############################################
@@ -136,33 +200,128 @@ Resources:
 # Create-RouteTable: VPCPublic Route Table    #
 ################################################
 
-  PublicSubnetRouteTable:
+  PublicSubnetARouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-Public-RT'
-
-  PublicRouteTable:
-    DependsOn: VPCGatewayAttachment
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PublicSubnetRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
+          Value: !Sub '${AWS::StackName}-Public-A-RT'
 
   PublicSubnetRouteTableAAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnetA
-      RouteTableId: !Ref PublicSubnetRouteTable
+      RouteTableId: !Ref PublicSubnetARouteTable
+
+  PublicRouteTableA1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicSubnetARouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-B-RT'  
 
   PublicSubnetRouteTableBAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnetB
-      RouteTableId: !Ref PublicSubnetRouteTable
+      RouteTableId: !Ref PublicSubnetBRouteTable
+
+  PublicRouteTableB1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicSubnetBRouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      GatewayId: !Ref InternetGateway
+########################################################
+# Create-Private-Subnet: Create VPC Private_Subnet_a,b #
+########################################################
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetABlock
+      AvailabilityZone: !Ref AvailabilityZoneA
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PrivateSubnetA'
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetBBlock
+      AvailabilityZone: !Ref AvailabilityZoneB
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PrivateSubnetB'
+
+#####################################################################
+# Create-Private-RouteTable: Create VPC_Private_RouteTable_a,b #
+#####################################################################
+  PrivateSubnetARouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-Subnet-A-RT'
+
+  PrivateSubnetBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-Subnet-B-RT'
+
+  PrivateSubnetARoute:
+    DependsOn:
+    - VPCGatewayAttachment
+    - NatGatewayA
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnetARouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+
+  PrivateSubnetBRoute:
+    DependsOn:
+    - VPCGatewayAttachment
+    - NatGatewayB
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnetBRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayB
+
+################################################################################################
+# Associate-Private-RouteTable: VPC_Private_Subnet_a,b Accsociate VPC_Private_RouteTable #
+################################################################################################
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA   
+      RouteTableId: !Ref PrivateSubnetARouteTable
+
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateSubnetBRouteTable
 
 #####################################
 # Create-GWLB and GWLB Target Group #
@@ -174,8 +333,8 @@ Resources:
       Name: GWLB
       Type: gateway
       Subnets:
-        - !Ref PublicSubnetA
-        - !Ref PublicSubnetB
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-GWLB'
@@ -300,10 +459,10 @@ Resources:
 
   ApplianceInstance1:
     Type: AWS::EC2::Instance
-    DependsOn: PublicSubnetA
+    DependsOn: PrivateSubnetA
     Properties:
-      SubnetId: !Ref PublicSubnetA
-      PrivateIpAddress: 10.254.11.101
+      SubnetId: !Ref PrivateSubnetA
+      PrivateIpAddress: 10.254.21.101
       SecurityGroupIds: 
         - Ref: ApplianceEC2SG
       ImageId: !Ref LatestAmiId
@@ -313,13 +472,13 @@ Resources:
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
           Ebs: 
-            VolumeSize: 10
+            VolumeSize: 20
             VolumeType: gp3
             Iops: 3000
             DeleteOnTermination: true
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-Appliance-10.254.11.101'
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.21.101'
       UserData:
         Fn::Base64:
           Fn::Sub: |
@@ -327,10 +486,10 @@ Resources:
             sudo yum -y update
             sudo yum -y install yum-utils
             sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
-            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
-            sudo yum -y install python-pip;
-            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;      
+            sudo yum -y install jq httpd iptables-services
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion
+            sudo yum -y install python-pip
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop          
   
             # Enable IP Forwarding:
             sudo sysctl -w net.ipv4.ip_forward=1
@@ -383,10 +542,10 @@ Resources:
   
   ApplianceInstance2:
     Type: AWS::EC2::Instance
-    DependsOn: PublicSubnetA
+    DependsOn: PrivateSubnetA
     Properties:
-      SubnetId: !Ref PublicSubnetA
-      PrivateIpAddress: 10.254.11.102
+      SubnetId: !Ref PrivateSubnetA
+      PrivateIpAddress: 10.254.21.102
       SecurityGroupIds: 
         - Ref: ApplianceEC2SG
       ImageId: !Ref LatestAmiId
@@ -396,13 +555,13 @@ Resources:
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
           Ebs: 
-            VolumeSize: 10
+            VolumeSize: 20
             VolumeType: gp3
             Iops: 3000
             DeleteOnTermination: true
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-Appliance-10.254.11.102'
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.21.102'
       UserData:
         Fn::Base64:
           Fn::Sub: |
@@ -410,10 +569,10 @@ Resources:
             sudo yum -y update
             sudo yum -y install yum-utils
             sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
-            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
-            sudo yum -y install python-pip;
-            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;       
+            sudo yum -y install jq httpd iptables-services
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion
+            sudo yum -y install python-pip
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop          
   
             # Enable IP Forwarding:
             sudo sysctl -w net.ipv4.ip_forward=1
@@ -466,10 +625,10 @@ Resources:
   
   ApplianceInstance3:
     Type: AWS::EC2::Instance
-    DependsOn: PublicSubnetB
+    DependsOn: PrivateSubnetB
     Properties:
-      SubnetId: !Ref PublicSubnetB
-      PrivateIpAddress: 10.254.12.101
+      SubnetId: !Ref PrivateSubnetB
+      PrivateIpAddress: 10.254.22.101
       SecurityGroupIds: 
         - Ref: ApplianceEC2SG
       ImageId: !Ref LatestAmiId
@@ -479,13 +638,13 @@ Resources:
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
           Ebs: 
-            VolumeSize: 10
+            VolumeSize: 20
             VolumeType: gp3
             Iops: 3000
             DeleteOnTermination: true
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-Appliance-10.254.12.101'
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.22.101'
       UserData:
         Fn::Base64:
           Fn::Sub: |
@@ -493,10 +652,10 @@ Resources:
             sudo yum -y update
             sudo yum -y install yum-utils
             sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
-            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
-            sudo yum -y install python-pip;
-            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;
+            sudo yum -y install jq httpd iptables-services
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion
+            sudo yum -y install python-pip
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop          
   
             # Enable IP Forwarding:
             sudo sysctl -w net.ipv4.ip_forward=1
@@ -549,10 +708,10 @@ Resources:
   
   ApplianceInstance4:
     Type: AWS::EC2::Instance
-    DependsOn: PublicSubnetB
+    DependsOn: PrivateSubnetB
     Properties:
-      SubnetId: !Ref PublicSubnetB
-      PrivateIpAddress: 10.254.12.102
+      SubnetId: !Ref PrivateSubnetB
+      PrivateIpAddress: 10.254.22.102
       SecurityGroupIds: 
         - Ref: ApplianceEC2SG
       ImageId: !Ref LatestAmiId      
@@ -562,13 +721,13 @@ Resources:
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
           Ebs: 
-            VolumeSize: 10
+            VolumeSize: 20
             VolumeType: gp3
             Iops: 3000
             DeleteOnTermination: true
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-Appliance-10.254.12.102'
+          Value: !Sub '${AWS::StackName}-Appliance-10.254.22.102'
       UserData:
         Fn::Base64:
           Fn::Sub: |
@@ -576,10 +735,10 @@ Resources:
             sudo yum -y update
             sudo yum -y install yum-utils
             sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-            sudo yum -y install jq httpd iptables-services php mysql php-mysql; 
-            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion;
-            sudo yum -y install python-pip;
-            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop golang;       
+            sudo yum -y install jq httpd iptables-services
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion
+            sudo yum -y install python-pip
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp htop          
   
             # Enable IP Forwarding:
             sudo sysctl -w net.ipv4.ip_forward=1
@@ -651,28 +810,63 @@ Outputs:
     Value: !Ref PublicSubnetB
     Export:
       Name: !Sub "${AWS::StackName}-Public-Subnet-B"
-  
+
+  PrivateSubnetA:
+    Description: PrivateSubnetA
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-Private-Subnet-A"
+
+  PrivateSubnetB:
+    Description: PrivateSubnetB
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-Private-Subnet-B"
+
   Appliance1Ip:
-    Description: Appliance1 Public IP
-    Value: !GetAtt ApplianceInstance1.PublicIp
+    Description: Appliance1 Private IP
+    Value: !GetAtt ApplianceInstance1.PrivateIp
     Export:
       Name: !Sub "${AWS::StackName}-Appliance1Ip"
 
   Appliance2Ip:
-    Description: Appliance2 Public IP
-    Value: !GetAtt ApplianceInstance2.PublicIp
+    Description: Appliance2 Private IP
+    Value: !GetAtt ApplianceInstance2.PrivateIp
     Export:
       Name: !Sub "${AWS::StackName}-Appliance2Ip"  
 
   Appliance3Ip:
-    Description: Appliance3 Public IP
-    Value: !GetAtt ApplianceInstance3.PublicIp
+    Description: Appliance3 Private IP
+    Value: !GetAtt ApplianceInstance3.PrivateIp
     Export:
       Name: !Sub "${AWS::StackName}-Appliance3Ip"  
 
   Appliance4Ip:
-    Description: Appliance4 Public IP
-    Value: !GetAtt ApplianceInstance4.PublicIp
+    Description: Appliance4 Private IP
+    Value: !GetAtt ApplianceInstance4.PrivateIp
     Export:
       Name: !Sub "${AWS::StackName}-Appliance4Ip"
 
+  ApplianceInstance1ID:
+    Description: "ApplianceInstance1 ID"
+    Value: !Ref ApplianceInstance1
+    Export:
+      Name: !Sub "${AWS::StackName}-ApplianceInstance1ID"
+
+  ApplianceInstance2ID:
+    Description: "ApplianceInstance2 ID"
+    Value: !Ref ApplianceInstance2
+    Export:
+      Name: !Sub "${AWS::StackName}-ApplianceInstance2ID"
+
+  ApplianceInstance3ID:
+    Description: "ApplianceInstance 3 ID"
+    Value: !Ref ApplianceInstance3
+    Export:
+      Name: !Sub "${AWS::StackName}-ApplianceInstance3ID"
+
+  ApplianceInstance4ID:
+    Description: "ApplianceInstance 4 ID"
+    Value: !Ref ApplianceInstance4
+    Export:
+      Name: !Sub "${AWS::StackName}-ApplianceInstance4ID"
