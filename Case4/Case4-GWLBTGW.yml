@@ -98,7 +98,7 @@ Resources:
         - Fn::ImportValue: !Sub "VPC01-TGW-Subnet-B"
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-Attach-N2SVPC'
+          Value: !Sub '${AWS::StackName}-Attach-VPC01'
       TransitGatewayId: !Ref TransitGatewayGWLB
       VpcId:
         Fn::ImportValue: !Sub "VPC01"
@@ -397,38 +397,38 @@ Resources:
 #      Port: 80
 #      Protocol: HTTP
 #
-#  InternetALB3: 
-#    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
-#    Properties: 
-#      VpcId:
-#        Fn::ImportValue: !Sub "N2SVPC"
-#      Name: !Sub "N2SVPC-alb3"
-#      Tags: 
-#        - Key: Name
-#          Value: !Sub "N2SVPC-alb3"
-#      Scheme: "internet-facing"
-#      LoadBalancerAttributes: 
-#        - Key: "deletion_protection.enabled"
-#          Value: false
-#        - Key: "idle_timeout.timeout_seconds"
-#          Value: 60
-#      SecurityGroups:
-#        Fn::ImportValue: !Sub "N2SVPC-ALBSecurityGroup"
-#      Subnets: 
-#        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-A"
-#        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-B"
-#
-#  ALBListener3: 
-#    Type: "AWS::ElasticLoadBalancingV2::Listener"
-#    Properties:
-#      VpcId:
-#        Fn::ImportValue: !Sub "N2SVPC" 
-#      DefaultActions: 
-#        - TargetGroupArn: !Ref TargetGroup3
-#          Type: forward
-#      LoadBalancerArn: !Ref InternetALB3
-#      Port: 80
-#      Protocol: HTTP
+  InternetALB3: 
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties: 
+      VpcId:
+        Fn::ImportValue: !Sub "N2SVPC"
+      Name: !Sub "N2SVPC-alb3"
+      Tags: 
+        - Key: Name
+          Value: !Sub "N2SVPC-alb3"
+      Scheme: "internet-facing"
+      LoadBalancerAttributes: 
+        - Key: "deletion_protection.enabled"
+          Value: false
+        - Key: "idle_timeout.timeout_seconds"
+          Value: 60
+      SecurityGroups:
+        Fn::ImportValue: !Sub "N2SVPC-ALBSecurityGroup"
+      Subnets: 
+        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-A"
+        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-B"
+
+  ALBListener3: 
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "N2SVPC" 
+      DefaultActions: 
+        - TargetGroupArn: !Ref TargetGroup3
+          Type: forward
+      LoadBalancerArn: !Ref InternetALB3
+      Port: 80
+      Protocol: HTTP
 #######################################################################
 # Create-Target Group #
 ######################################################################
@@ -469,39 +469,40 @@ Resources:
 #        - Fn::ImportValue: !Sub "VPC01-PrivateBInstanace2ID"
 #          Port: 80
 #
-#  TargetGroup3: 
-#    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
-#    Properties: 
-#      VpcId:
-#        Fn::ImportValue: !Sub "N2SVPC"
-#      Name: !Sub "N2SVPC-ALB-tg3"
-#      Protocol: HTTP
-#      Port: 80
-#      HealthCheckProtocol: HTTP
-#      HealthCheckPath: "/ec2meta-webpage/index.php"
-#      HealthCheckPort: "traffic-port"
-#      HealthyThresholdCount: 2
-#      UnhealthyThresholdCount: 2
-#      HealthCheckTimeoutSeconds: 5
-#      HealthCheckIntervalSeconds: 10
-#      Matcher: 
-#        HttpCode: 200
-#      Tags: 
-#        - Key: Name
-#          Value: !Sub "N2SVPC-ALB-tg3"
-#      TargetGroupAttributes: 
-#        - Key: "deregistration_delay.timeout_seconds"
-#          Value: 300
-#        - Key: "stickiness.enabled"
-#          Value: false
-#        - Key: "stickiness.type"
-#          Value: lb_cookie
-#        - Key: "stickiness.lb_cookie.duration_seconds"
-#          Value: 86400
-#      Targets: 
-#        Ids:
-#        - Fn::ImportValue: !Sub "VPC02-PrivateAInstanace1ID"
-#        - Fn::ImportValue: !Sub "VPC02-PrivateAInstanace2ID"
-#        - Fn::ImportValue: !Sub "VPC02-PrivateBInstanace1ID"
-#        - Fn::ImportValue: !Sub "VPC02-PrivateBInstanace2ID"
-#          Port: 80
+  TargetGroup3: 
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties: 
+      VpcId:
+        Fn::ImportValue: !Sub "N2SVPC"
+      Name: !Sub "N2SVPC-ALB-tg3"
+      Protocol: HTTP
+      Port: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: "/ec2meta-webpage/index.php"
+      HealthCheckPort: "traffic-port"
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 10
+      Matcher: 
+        HttpCode: 200
+      Tags: 
+        - Key: Name
+          Value: !Sub "N2SVPC-ALB-tg3"
+      TargetGroupAttributes: 
+        - Key: "deregistration_delay.timeout_seconds"
+          Value: 300
+        - Key: "stickiness.enabled"
+          Value: false
+        - Key: "stickiness.type"
+          Value: lb_cookie
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: 86400
+      TargetType: ip
+      Targets: 
+        ips:
+        - Fn::ImportValue: !Sub "VPC02-PrivateAInstanace1ID"
+        - Fn::ImportValue: !Sub "VPC02-PrivateAInstanace2ID"
+        - Fn::ImportValue: !Sub "VPC02-PrivateBInstanace1ID"
+        - Fn::ImportValue: !Sub "VPC02-PrivateBInstanace2ID"
+          Port: 80
