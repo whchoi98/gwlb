@@ -1,0 +1,507 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Add Transit Gateway and TG Basic Config"
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "VPC Parameters"
+        Parameters:
+         - DefaultRouteBlock
+         - VPC01CIDRBlock
+         - VPC02CIDRBlock
+#         - VPC03CIDRBlock
+         - VPCEndpointServiceName
+         - InstanceType
+Parameters:
+
+  DefaultRouteBlock:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: "Enter desired CIDR to Default route"
+
+  VPC01CIDRBlock:
+    Type: String
+    Default: 10.1.0.0/16
+    Description: "Enter desired CIDR to VPC1 route"
+
+  VPC02CIDRBlock:
+    Type: String
+    Default: 10.2.0.0/16
+    Description: "Enter desired CIDR to VPC2 route"
+
+#  VPC03CIDRBlock:
+#    Type: String
+#    Default: 10.3.0.0/16
+#    Description: "Enter desired CIDR to VPC3 route"
+
+Resources:
+#########################
+# Create-TransitGateWay #
+#########################
+  TransitGatewayGWLB:
+    Type: "AWS::EC2::TransitGateway"
+    Properties:
+      AmazonSideAsn: 65001
+      Description: "TGW Route Integration Test"
+      AutoAcceptSharedAttachments: "enable"
+      DefaultRouteTableAssociation: "disable"
+      DefaultRouteTablePropagation: "disable"
+      DnsSupport: "enable"
+      VpnEcmpSupport: "enable"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}'
+
+####################################
+# Create-TransitGateWay-RouteTable #
+####################################
+
+  TransitGatewayRouteTableVPCIN:
+    Type: "AWS::EC2::TransitGatewayRouteTable"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-RT-VPC-IN'
+      TransitGatewayId: !Ref TransitGatewayGWLB
+
+  TransitGatewayRouteTableVPCOUT:
+    Type: "AWS::EC2::TransitGatewayRouteTable"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-RT-VPC-OUT'
+      TransitGatewayId: !Ref TransitGatewayGWLB
+
+##############################################
+# Connect to the Transit Gateway#
+##############################################
+
+  TransitGatewayAttachmentN2SVPC:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds:
+        - Fn::ImportValue: !Sub "N2SVPC-TGW-Subnet-A"
+        - Fn::ImportValue: !Sub "N2SVPC-TGW-Subnet-B"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Attach-N2SVPC'
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      VpcId:
+        Fn::ImportValue: !Sub "N2SVPC"
+
+  TransitGatewayAttachmentVPC01:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds:
+        - Fn::ImportValue: !Sub "VPC01-TGW-Subnet-A"
+        - Fn::ImportValue: !Sub "VPC01-TGW-Subnet-B"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Attach-N2SVPC'
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      VpcId:
+        Fn::ImportValue: !Sub "VPC01"
+
+  TransitGatewayAttachmentVPC02:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds:
+        - Fn::ImportValue: !Sub "VPC02-TGW-Subnet-A"
+        - Fn::ImportValue: !Sub "VPC02-TGW-Subnet-B"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Attach-VPC02'
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      VpcId:
+        Fn::ImportValue: !Sub "VPC02"
+
+#  TransitGatewayAttachmentVPC03:
+#    Type: "AWS::EC2::TransitGatewayAttachment"
+#    Properties:
+#      SubnetIds:
+#        - Fn::ImportValue: !Sub "VPC03-TGW-Subnet-A"
+#        - Fn::ImportValue: !Sub "VPC03-TGW-Subnet-B"
+#      Tags:
+#        - Key: Name
+#          Value: !Sub '${AWS::StackName}-Attach-VPC03'
+#      TransitGatewayId: !Ref TransitGatewayGWLB
+#      VpcId:
+#        Fn::ImportValue: !Sub "VPC03"
+
+  TransitGatewayRouteTableAssociationN2S:
+    Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentN2SVPC
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
+
+  TransitGatewayRouteTableAssociationVPC01:
+    Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC01
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
+
+  TransitGatewayRouteTableAssociationVPC02:
+    Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC02
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
+
+#  TransitGatewayRouteTableAssociationVPC03:
+#    Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
+#    Properties:
+#      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC03
+#      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
+
+  TransitGatewayRouteN2S01:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentN2SVPC
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCOUT
+
+  TransitGatewayRouteVPC01:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC01
+      DestinationCidrBlock: !Ref VPC01CIDRBlock
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
+
+  TransitGatewayRouteVPC02:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC02
+      DestinationCidrBlock: !Ref VPC02CIDRBlock
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
+
+#  TransitGatewayRouteVPC03:
+#    Type: AWS::EC2::TransitGatewayRoute
+#    Properties:
+#      TransitGatewayAttachmentId: !Ref TransitGatewayAttachmentVPC03
+#      DestinationCidrBlock: !Ref VPC03CIDRBlock
+#      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTableVPCIN
+
+### N2SVPC route table configuration
+
+  N2SVPCAZAAddRoute1:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC    
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC01CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PrivateSubnetARouteTableID"
+
+  N2SVPCAZAAddRoute2:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC02CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PrivateSubnetARouteTableID"
+
+  N2SVPCAZAAddRoute3:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC    
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC01CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PublicSubnetARouteTableID"
+
+  N2SVPCAZAAddRoute4:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC02CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PublicSubnetARouteTableID"
+#  N2SVPCAZAAddRoute3:
+#    DependsOn:
+#      - TransitGatewayGWLB
+#      - TransitGatewayAttachmentN2SVPC
+#    Type: AWS::EC2::Route
+#    Properties:
+#      DestinationCidrBlock: !Ref VPC03CIDRBlock
+#      TransitGatewayId: !Ref TransitGatewayGWLB
+#      RouteTableId: 
+#        Fn::ImportValue: !Sub "N2SVPC-PrivateSubnetARouteTableID"
+
+  N2SVPCAZBAddRoute1:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC    
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC01CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PrivateSubnetBRouteTableID"
+
+  N2SVPCAZBAddRoute2:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC02CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PrivateSubnetBRouteTableID"
+
+  N2SVPCAZBAddRoute3:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC    
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC01CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PublicSubnetBRouteTableID"
+
+  N2SVPCAZBAddRoute4:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentN2SVPC
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref VPC02CIDRBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId: 
+        Fn::ImportValue: !Sub "N2SVPC-PublicSubnetBRouteTableID"
+
+#  N2SVPCAZBAddRoute3:
+#    DependsOn:
+#      - TransitGatewayGWLB
+#      - TransitGatewayAttachmentN2SVPC
+#    Type: AWS::EC2::Route
+#    Properties:
+#      DestinationCidrBlock: !Ref VPC03CIDRBlock
+#      TransitGatewayId: !Ref TransitGatewayGWLB
+#      RouteTableId: 
+#        Fn::ImportValue: !Sub "N2SVPC-PrivateSubnetBRouteTableID"
+
+### VPC01 route table configuration
+  VPC01AZAAddRoute1:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentVPC01
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId:  
+        Fn::ImportValue: !Sub "VPC01-PrivateSubnetARouteTableID"
+
+  VPC01AZBAddRoute1:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentVPC01
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId:  
+        Fn::ImportValue: !Sub "VPC01-PrivateSubnetBRouteTableID"
+
+### VPC02 route table configuration
+  VPC02AZAAddRoute1:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentVPC02
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId:  
+        Fn::ImportValue: !Sub "VPC02-PrivateSubnetARouteTableID"
+
+  VPC02AZBAddRoute1:
+    DependsOn:
+      - TransitGatewayGWLB
+      - TransitGatewayAttachmentVPC02
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      TransitGatewayId: !Ref TransitGatewayGWLB
+      RouteTableId:  
+        Fn::ImportValue: !Sub "VPC02-PrivateSubnetBRouteTableID"
+
+### VPC03 route table configuration
+#  VPC03AZAAddRoute1:
+#    DependsOn:
+#      - TransitGatewayGWLB
+#      - TransitGatewayAttachmentVPC03
+#    Type: AWS::EC2::Route
+#    Properties:
+#      DestinationCidrBlock: !Ref DefaultRouteBlock
+#      TransitGatewayId: !Ref TransitGatewayGWLB
+#      RouteTableId:  
+#        Fn::ImportValue: !Sub "VPC03-PrivateSubnetARouteTableID"
+#
+#  VPC03AZBAddRoute1:
+#    DependsOn:
+#      - TransitGatewayGWLB
+#      - TransitGatewayAttachmentVPC03
+#    Type: AWS::EC2::Route
+#    Properties:
+#      DestinationCidrBlock: !Ref DefaultRouteBlock
+#      TransitGatewayId: !Ref TransitGatewayGWLB
+#      RouteTableId:  
+#        Fn::ImportValue: !Sub "VPC03-PrivateSubnetBRouteTableID"
+
+######################################################################
+# Create-Internet ALB #
+######################################################################
+#  InternetALB2: 
+#    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+#    Properties: 
+#      VpcId:
+#        Fn::ImportValue: !Sub "N2SVPC"
+#      Name: !Sub "N2SVPC-alb2"
+#      Tags: 
+#        - Key: Name
+#          Value: !Sub "N2SVPC-alb2"
+#      Scheme: "internet-facing"
+#      LoadBalancerAttributes: 
+#        - Key: "deletion_protection.enabled"
+#          Value: false
+#        - Key: "idle_timeout.timeout_seconds"
+#          Value: 60
+#      SecurityGroups:
+#        Fn::ImportValue: !Sub "N2SVPC-ALBSecurityGroup"
+#      Subnets: 
+#        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-A"
+#        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-B"
+#
+#  ALBListener2: 
+#    Type: "AWS::ElasticLoadBalancingV2::Listener"
+#    Properties:
+#      VpcId:
+#        Fn::ImportValue: !Sub "N2SVPC" 
+#      DefaultActions: 
+#        - TargetGroupArn: !Ref TargetGroup2
+#          Type: forward
+#      LoadBalancerArn: !Ref InternetALB2
+#      Port: 80
+#      Protocol: HTTP
+#
+#  InternetALB3: 
+#    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+#    Properties: 
+#      VpcId:
+#        Fn::ImportValue: !Sub "N2SVPC"
+#      Name: !Sub "N2SVPC-alb3"
+#      Tags: 
+#        - Key: Name
+#          Value: !Sub "N2SVPC-alb3"
+#      Scheme: "internet-facing"
+#      LoadBalancerAttributes: 
+#        - Key: "deletion_protection.enabled"
+#          Value: false
+#        - Key: "idle_timeout.timeout_seconds"
+#          Value: 60
+#      SecurityGroups:
+#        Fn::ImportValue: !Sub "N2SVPC-ALBSecurityGroup"
+#      Subnets: 
+#        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-A"
+#        - Fn::ImportValue: !Sub "N2SVPC-Public-Subnet-B"
+#
+#  ALBListener3: 
+#    Type: "AWS::ElasticLoadBalancingV2::Listener"
+#    Properties:
+#      VpcId:
+#        Fn::ImportValue: !Sub "N2SVPC" 
+#      DefaultActions: 
+#        - TargetGroupArn: !Ref TargetGroup3
+#          Type: forward
+#      LoadBalancerArn: !Ref InternetALB3
+#      Port: 80
+#      Protocol: HTTP
+#######################################################################
+# Create-Target Group #
+######################################################################
+#  TargetGroup2: 
+#    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+#    Properties: 
+#      VpcId:
+#        Fn::ImportValue: !Sub "N2SVPC"
+#      Name: !Sub "N2SVPC-ALB-tg2"
+#      Protocol: HTTP
+#      Port: 80
+#      HealthCheckProtocol: HTTP
+#      HealthCheckPath: "/ec2meta-webpage/index.php"
+#      HealthCheckPort: "traffic-port"
+#      HealthyThresholdCount: 2
+#      UnhealthyThresholdCount: 2
+#      HealthCheckTimeoutSeconds: 5
+#      HealthCheckIntervalSeconds: 10
+#      Matcher: 
+#        HttpCode: 200
+#      Tags: 
+#        - Key: Name
+#          Value: !Sub "N2SVPC-ALB-tg2"
+#      TargetGroupAttributes: 
+#        - Key: "deregistration_delay.timeout_seconds"
+#          Value: 300
+#        - Key: "stickiness.enabled"
+#          Value: false
+#        - Key: "stickiness.type"
+#          Value: lb_cookie
+#        - Key: "stickiness.lb_cookie.duration_seconds"
+#          Value: 86400
+#      Targets: 
+#        Ids:
+#        - Fn::ImportValue: !Sub "VPC01-PrivateAInstanace1ID"           
+#        - Fn::ImportValue: !Sub "VPC01-PrivateAInstanace2ID"            
+#        - Fn::ImportValue: !Sub "VPC01-PrivateBInstanace1ID"            
+#        - Fn::ImportValue: !Sub "VPC01-PrivateBInstanace2ID"
+#          Port: 80
+#
+#  TargetGroup3: 
+#    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+#    Properties: 
+#      VpcId:
+#        Fn::ImportValue: !Sub "N2SVPC"
+#      Name: !Sub "N2SVPC-ALB-tg3"
+#      Protocol: HTTP
+#      Port: 80
+#      HealthCheckProtocol: HTTP
+#      HealthCheckPath: "/ec2meta-webpage/index.php"
+#      HealthCheckPort: "traffic-port"
+#      HealthyThresholdCount: 2
+#      UnhealthyThresholdCount: 2
+#      HealthCheckTimeoutSeconds: 5
+#      HealthCheckIntervalSeconds: 10
+#      Matcher: 
+#        HttpCode: 200
+#      Tags: 
+#        - Key: Name
+#          Value: !Sub "N2SVPC-ALB-tg3"
+#      TargetGroupAttributes: 
+#        - Key: "deregistration_delay.timeout_seconds"
+#          Value: 300
+#        - Key: "stickiness.enabled"
+#          Value: false
+#        - Key: "stickiness.type"
+#          Value: lb_cookie
+#        - Key: "stickiness.lb_cookie.duration_seconds"
+#          Value: 86400
+#      Targets: 
+#        Ids:
+#        - Fn::ImportValue: !Sub "VPC02-PrivateAInstanace1ID"
+#        - Fn::ImportValue: !Sub "VPC02-PrivateAInstanace2ID"
+#        - Fn::ImportValue: !Sub "VPC02-PrivateBInstanace1ID"
+#        - Fn::ImportValue: !Sub "VPC02-PrivateBInstanace2ID"
+#          Port: 80

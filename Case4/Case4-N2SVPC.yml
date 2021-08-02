@@ -1,0 +1,1114 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "VPC Parameters"
+        Parameters:
+         - AvailabilityZoneA
+         - AvailabilityZoneB
+         - VPCCIDRBlock
+         - GWLBeSubnetABlock
+         - GWLBeSubnetBBlock
+         - PublicSubnetABlock
+         - PublicSubnetBBlock
+         - PrivateSubnetABlock
+         - PrivateSubnetBBlock
+         - TGWSubnetABlock
+         - TGWSubnetBBlock
+         - DefaultRouteBlock
+         - VPC1CIDRBlock
+         - VPC2CIDRBlock
+         - VPC3CIDRBlock
+         - VPCEndpointServiceName
+         - InstanceType
+         - VPC01-PrivateAInstance1
+         - VPC01-PrivateAInstance2
+         - VPC01-PrivateBInstance1
+         - VPC01-PrivateBInstance2
+         - VPC02-PrivateAInstance1
+         - VPC02-PrivateAInstance2
+         - VPC02-PrivateBInstance1
+         - VPC02-PrivateBInstance2
+
+##################################################################################################################################
+# Create-Parameters : AZ,VPC CIDR Blcok, Public,Private,TGW Subnet Block, InstanceType, VPC,VPC01,02,03,Defualt Route CIDR Block #
+##################################################################################################################################
+
+Parameters:
+  AvailabilityZoneA:
+    Description: "Choose AZ1 for your VPC."
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1a"
+
+  AvailabilityZoneB:
+    Description: "Choose AZ2 for your VPC."
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1c"
+
+  VPCCIDRBlock:
+    Type: String
+    Default: 10.11.0.0/16
+    Description: "The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range."
+
+  GWLBeSubnetABlock:
+    Type: String
+    Default: 10.11.1.0/24
+    Description: "CidrBlock for AZ A GWLBe subnet A within the VPC"   
+
+  GWLBeSubnetBBlock:
+    Type: String
+    Default: 10.11.2.0/24
+    Description: "CidrBlock for AZ B GWLBe subnet B within the VPC"
+
+  PublicSubnetABlock:
+    Type: String
+    Default: 10.11.11.0/24
+    Description: "CidrBlock for AZ A public subnet A within the VPC"   
+
+  PublicSubnetBBlock:
+    Type: String
+    Default: 10.11.12.0/24
+    Description: "CidrBlock for AZ B public subnet B within the VPC"
+
+  PrivateSubnetABlock:
+    Type: String
+    Default: 10.11.21.0/24
+    Description: "CidrBlock for AZ A private subnet A within the VPC"   
+
+  PrivateSubnetBBlock:
+    Type: String
+    Default: 10.11.22.0/24
+    Description: "CidrBlock for AZ B private subnet B within the VPC"
+
+  TGWSubnetABlock:
+    Type: String
+    Default: 10.11.251.0/24
+    Description: "CidrBlock for AZ A TGW subnet A within the VPC"   
+
+  TGWSubnetBBlock:
+    Type: String
+    Default: 10.11.252.0/24
+    Description: "CidrBlock for AZ B TGW subnet B within the VPC"
+
+  DefaultRouteBlock:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: "Enter desired CIDR to Default route"
+
+  VPC1CIDRBlock:
+    Type: String
+    Default: 10.1.0.0/16
+    Description: "Enter desired CIDR to VPC1 route"
+
+  VPC2CIDRBlock:
+    Type: String
+    Default: 10.2.0.0/16
+    Description: "Enter desired CIDR to VPC2 route"
+
+  VPC01PrivateAInstance1:
+    Type: String
+    Default: 10.1.21.101
+    Description: "VPC1 PrivateA Instance1 IP address"
+
+  VPC01PrivateAInstance2:
+    Type: String
+    Default: 10.1.21.102
+    Description: "VPC1 PrivateA Instance2 IP address"
+
+  VPC01PrivateBInstance1:
+    Type: String
+    Default: 10.1.22.101
+    Description: "VPC1 PrivateB Instance1 IP address"
+
+  VPC01PrivateBInstance2:
+    Type: String
+    Default: 10.1.22.102
+    Description: "VPC1 PrivateB Instance2 IP address"
+
+  VPC02PrivateAInstance1:
+    Type: String
+    Default: 10.2.21.101
+    Description: "VPC2 PrivateA Instance1 IP address"
+
+  VPC02PrivateAInstance2:
+    Type: String
+    Default: 10.2.21.102
+    Description: "VPC2 PrivateA Instance2 IP address"
+
+  VPC02PrivateBInstance1:
+    Type: String
+    Default: 10.2.22.101
+    Description: "VPC2 PrivateB Instance1 IP address"
+
+  VPC02PrivateBInstance2:
+    Type: String
+    Default: 10.2.22.102
+    Description: "VPC2 PrivateB Instance2 IP address"
+
+  VPCEndpointServiceName:
+    Type: String
+    Description: Check the name of the VPC Endpoint Service in the GWLB VPC. 
+
+  InstanceType:
+    Type: String
+    Default: t3.small
+    Description: EC2 Instance Type for the VPC.
+
+################################
+# Create-Keypair : EC2 Keypair #
+################################
+
+  KeyPair:
+    Description: "Keypair to access the EC2 Instance"
+    Type: "AWS::EC2::KeyPair::KeyName"
+    Default: "Your KeyPair"
+
+##########################
+# Create-AMI: EC2 AMI ID #
+##########################
+
+  LatestAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+
+###############################
+# Create-Resource: Resource   #
+###############################
+
+Resources:
+
+#####################
+# Create-VPC : VPC #
+#####################
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDRBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}'
+        - Key: project
+          Value: !Sub '${AWS::StackName}'
+
+###########################################
+# Create-IGW: Create VPC InternetGateway #
+###########################################
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-IGW'
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+#############################################
+# Create-NATGW: Create VPC NATGateway #
+#############################################
+  NatGatewayAEIP:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-NATGW-A-EIP'
+
+  NatGatewayA:
+    DependsOn:
+    - NatGatewayAEIP
+    - PublicSubnetA
+    - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayAEIP.AllocationId'
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NATGW-A'
+
+  NatGatewayBEIP:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-NATGW-B-EIP'
+
+  NatGatewayB:
+    DependsOn:
+    - NatGatewayBEIP
+    - PublicSubnetB
+    - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayBEIP.AllocationId'
+      SubnetId: !Ref PublicSubnetB
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NATGW-B'
+
+###############################################
+# Create-Public-Subnet: VPC Public_Subnet_a,b #
+###############################################
+
+  GWLBeSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref GWLBeSubnetABlock
+      AvailabilityZone: !Ref AvailabilityZoneA
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-GWLBe-Subnet-A'
+
+  GWLBeSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref GWLBeSubnetBBlock
+      AvailabilityZone: !Ref AvailabilityZoneB
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-GWLBe-Subnet-B'
+
+###############################################
+# Create-Public-Subnet: VPC Public_Subnet_a,b #
+###############################################
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetABlock
+      AvailabilityZone: !Ref AvailabilityZoneA
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-Subnet-A'
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetBBlock
+      AvailabilityZone: !Ref AvailabilityZoneB
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-Subnet-B'
+
+################################################
+# Create-RouteTable: VPC IGW Ingress Route     #
+################################################
+
+  IgwRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-IGW-Ingress-RT'
+
+  IgwRouteTableAssociation:
+    Type: AWS::EC2::GatewayRouteTableAssociation
+    Properties:
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref IgwRouteTable
+
+  AddRouteIgwRouteTable1:
+    Type: AWS::EC2::Route
+    DependsOn: GWLBVPCEndpointA
+    Properties:
+      DestinationCidrBlock: !Ref PublicSubnetABlock
+      VpcEndpointId: !Ref GWLBVPCEndpointA
+      RouteTableId: !Ref IgwRouteTable
+
+  AddRouteIgwRouteTable2:
+    Type: AWS::EC2::Route
+    DependsOn: GWLBVPCEndpointB
+    Properties:
+      DestinationCidrBlock: !Ref PublicSubnetBBlock
+      VpcEndpointId: !Ref GWLBVPCEndpointB
+      RouteTableId: !Ref IgwRouteTable    
+
+  AddRouteIgwRouteTable3:
+    Type: AWS::EC2::Route
+    DependsOn: GWLBVPCEndpointA
+    Properties:
+      DestinationCidrBlock: !Ref GWLBeSubnetABlock
+      VpcEndpointId: !Ref GWLBVPCEndpointA
+      RouteTableId: !Ref IgwRouteTable
+
+  AddRouteIgwRouteTable4:
+    Type: AWS::EC2::Route
+    DependsOn: GWLBVPCEndpointB
+    Properties:
+      DestinationCidrBlock: !Ref GWLBeSubnetBBlock
+      VpcEndpointId: !Ref GWLBVPCEndpointB
+      RouteTableId: !Ref IgwRouteTable    
+
+################################################
+# Create-RouteTable: GWLBe Route Table    #
+################################################
+
+  GWLBeSubnetARouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-GWLBeA-RT'
+
+  GWLBeSubnetRouteTableAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref GWLBeSubnetA
+      RouteTableId: !Ref GWLBeSubnetARouteTable
+
+  GWLBeRouteTableA1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref GWLBeSubnetARouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      GatewayId: !Ref InternetGateway
+
+  GWLBeSubnetBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-GWLBe-B-RT'  
+
+  GWLBeSubnetRouteTableBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref GWLBeSubnetB
+      RouteTableId: !Ref GWLBeSubnetBRouteTable
+
+  GWLBeRouteTableB1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref GWLBeSubnetBRouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      GatewayId: !Ref InternetGateway
+
+################################################
+# Create-RouteTable: Public Route Table    #
+################################################
+  PublicSubnetARouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-A-RT'
+
+  PublicSubnetRouteTableAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicSubnetARouteTable
+
+  PublicRouteTableA1:
+    DependsOn: GWLBVPCEndpointA
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicSubnetARouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      VpcEndpointId: !Ref GWLBVPCEndpointA
+
+  PublicSubnetBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-B-RT'  
+
+  PublicSubnetRouteTableBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicSubnetBRouteTable
+
+  PublicRouteTableB1:
+    DependsOn: GWLBVPCEndpointB
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicSubnetBRouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      VpcEndpointId: !Ref GWLBVPCEndpointB
+
+
+################################################
+# Create-RouteTable: VPCPrivate Route Table    #
+################################################
+
+  PrivateSubnetARouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-A-RT'
+
+  PrivateSubnetRouteTableAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateSubnetARouteTable
+
+  PrivateRouteTableA1:
+    DependsOn: NatGatewayA
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnetARouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      NatGatewayId: !Ref NatGatewayA
+
+#################################################
+# Create-Private-Subnet A and routing table     #
+#################################################
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetABlock
+      AvailabilityZone: !Ref AvailabilityZoneA
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-Subnet-A'
+
+
+  PrivateSubnetARouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-A-RT'
+
+  PrivateSubnetRouteTableAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateSubnetARouteTable
+
+  PrivateRouteTableA1:
+    DependsOn: NatGatewayA
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnetARouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      NatGatewayId: !Ref NatGatewayA
+
+#################################################
+# Create-Private-Subnet B and routing table     #
+#################################################
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetBBlock
+      AvailabilityZone: !Ref AvailabilityZoneB
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-Subnet-B'
+  
+  PrivateSubnetBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-B-RT'
+
+  PrivateSubnetRouteTableBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateSubnetBRouteTable
+
+  PrivateRouteTableB1:
+    DependsOn: NatGatewayB
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnetBRouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      NatGatewayId: !Ref NatGatewayB
+
+#################################################
+# Create-TGW-Subnet A and routing table         #
+#################################################
+  TGWSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref TGWSubnetABlock
+      AvailabilityZone: !Ref AvailabilityZoneA
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-TGW-Subnet-A'
+
+  TGWSubnetARouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-TGW-A-RT'
+
+  TGWSubnetRouteTableAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref TGWSubnetA
+      RouteTableId: !Ref TGWSubnetARouteTable
+
+  TGWRouteTableA1:
+    DependsOn: NatGatewayA
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref TGWSubnetARouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      NatGatewayId: !Ref NatGatewayA
+
+#################################################
+# Create-TGW-Subnet A and routing table         #
+#################################################
+  TGWSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref TGWSubnetBBlock
+      AvailabilityZone: !Ref AvailabilityZoneB
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-TGW-Subnet-B'
+
+  TGWSubnetBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-TGW-B-RT'
+
+  TGWSubnetRouteTableBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref TGWSubnetB
+      RouteTableId: !Ref TGWSubnetBRouteTable
+
+  TGWRouteTableB1:
+    DependsOn: NatGatewayA
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref TGWSubnetBRouteTable
+      DestinationCidrBlock: !Ref DefaultRouteBlock
+      NatGatewayId: !Ref NatGatewayB
+
+###############################################
+# Create-VPCEndPoint                          #
+###############################################
+
+  GWLBVPCEndpointA:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Ref VPCEndpointServiceName
+      VpcEndpointType: GatewayLoadBalancer
+      SubnetIds:
+        - !Ref GWLBeSubnetA
+
+  GWLBVPCEndpointB:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Ref VPCEndpointServiceName
+      VpcEndpointType: GatewayLoadBalancer
+      SubnetIds:
+        - !Ref GWLBeSubnetB
+
+###############################################################################
+# Create-Security-Group: VPC Security Group - HTTP, HTTPS, ICMP , SSH Permit #
+###############################################################################
+
+  PrivateEC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open-up ports for ICMP and SSH,HTTP/S from All network
+      GroupName: PrivateEC2SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: 0.0.0.0/0
+          FromPort: "-1"
+          ToPort: "-1"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "22"
+          ToPort: "22"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "80"
+          ToPort: "80"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "443"
+          ToPort: "443"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PrivateSG'
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open-up ports for HTTP/S from All network
+      GroupName: ALBSecurityGroup
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "80"
+          ToPort: "80"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "443"
+          ToPort: "443"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-ALBSecurityGroup'
+
+  SSMSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open-up ports for HTTP/S from All network
+      GroupName: SSMSG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "80"
+          ToPort: "80"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "443"
+          ToPort: "443"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-SSMSG'
+
+##############################################
+# Create-Private-EC2: VPC Private EC2 Create #
+##############################################
+
+  PrivateAInstance1:
+    Type: AWS::EC2::Instance
+    DependsOn: PrivateSubnetA
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      ImageId: !Ref LatestAmiId
+      PrivateIpAddress: 10.11.21.101
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PrivateEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-A-10.11.21.101'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql;
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            exit       
+
+  PrivateAInstance2:
+    Type: AWS::EC2::Instance
+    DependsOn: PrivateSubnetA
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      ImageId: !Ref LatestAmiId
+      PrivateIpAddress: 10.11.21.102
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PrivateEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-A-10.11.21.102'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql; 
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            exit       
+
+  PrivateBInstance1:
+    Type: AWS::EC2::Instance
+    DependsOn: PrivateSubnetB
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      ImageId: !Ref LatestAmiId
+      PrivateIpAddress: 10.11.22.101
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PrivateEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-B-10.11.22.101'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql; 
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            exit
+
+  PrivateBInstance2:
+    Type: AWS::EC2::Instance
+    DependsOn: PrivateSubnetB
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      ImageId: !Ref LatestAmiId
+      PrivateIpAddress: 10.11.22.102
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PrivateEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Private-B-10.11.22.102'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql; 
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            exit
+###############################################
+# Create-SSM: Create PrivateServer ServerRole #
+###############################################
+
+  ServerRoleSSM:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-SSMRole'
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+  InstanceProfileSSM:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles: 
+        - Ref: ServerRoleSSM
+        
+######################################################################
+# Create-System-Manager-Endpoint: Create VPC SystemManager Endpoint #
+######################################################################
+
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: True
+      SubnetIds: 
+        - Ref: PrivateSubnetA
+        - Ref: PrivateSubnetB
+      SecurityGroupIds:
+        - Ref: SSMSG
+
+  SSMMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: True
+      SubnetIds: 
+        - Ref: PrivateSubnetA
+        - Ref: PrivateSubnetB
+      SecurityGroupIds:
+        - Ref: SSMSG
+
+######################################################################
+# Create-Internet ALB #
+######################################################################
+  InternetALB1: 
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties: 
+      Name: !Sub "${AWS::StackName}-alb1"
+      Tags: 
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-alb1"
+      Scheme: "internet-facing"
+      LoadBalancerAttributes: 
+        - Key: "deletion_protection.enabled"
+          Value: false
+        - Key: "idle_timeout.timeout_seconds"
+          Value: 60
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets: 
+        - Ref: PublicSubnetA
+        - Ref: PublicSubnetB
+
+  ALBListener1: 
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties: 
+      DefaultActions: 
+        - TargetGroupArn: !Ref TargetGroup1
+          Type: forward
+      LoadBalancerArn: !Ref InternetALB1
+      Port: 80
+      Protocol: HTTP
+
+######################################################################
+# Create-Target Group #
+######################################################################
+  TargetGroup1: 
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties: 
+      VpcId: !Ref VPC
+      Name: !Sub "${AWS::StackName}-ALB-tg1"
+      Protocol: HTTP
+      Port: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: "/ec2meta-webpage/index.php"
+      HealthCheckPort: "traffic-port"
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 10
+      Matcher: 
+        HttpCode: 200
+      Tags: 
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ALB-tg1"
+      TargetGroupAttributes: 
+        - Key: "deregistration_delay.timeout_seconds"
+          Value: 300
+        - Key: "stickiness.enabled"
+          Value: false
+        - Key: "stickiness.type"
+          Value: lb_cookie
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: 86400
+      Targets: 
+        - Id: !Ref PrivateAInstance1
+        - Id: !Ref PrivateAInstance2
+        - Id: !Ref PrivateBInstance1
+        - Id: !Ref PrivateBInstance2
+          Port: 80
+
+
+###############
+# VPC Outputs #
+###############
+Outputs:
+  VPC:
+    Description: VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}"
+
+  GWLBeSubnetA:
+    Description: PublicSubnetA
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-GWLBe-Subnet-A"
+
+  GWLBeSubnetB:
+    Description: PublicSubnetB
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-GWLBe-Subnet-B"
+
+  PublicSubnetA:
+    Description: PublicSubnetA
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-Public-Subnet-A"
+
+  PublicSubnetB:
+    Description: PublicSubnetB
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-Public-Subnet-B"
+  
+  PrivateSubnetA:
+    Description: PublicSubnetA
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-Private-Subnet-A"
+
+  PrivateSubnetB:
+    Description: PublicSubnetB
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-Private-Subnet-B"
+
+  TGWSubnetA:
+    Description: TGWSubnetA
+    Value: !Ref TGWSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-TGW-Subnet-A"
+
+  TGWSubnetB:
+    Description: TGWSubnetB
+    Value: !Ref TGWSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-TGW-Subnet-B"
+
+  GWLBeSubnetARouteTable:
+    Description: GWLBeSubnetARouteTableID
+    Value: !Ref GWLBeSubnetARouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-GWLBeSubnetARouteTableID"
+
+  GWLBeSubnetBRouteTable:
+    Description: GWLBeSubnetBRouteTableID
+    Value: !Ref GWLBeSubnetBRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-GWLBeSubnetBRouteTableID"
+
+  PublicSubnetARouteTable:
+    Description: PublicSubnetARouteTableID
+    Value: !Ref PublicSubnetARouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetARouteTableID"
+
+  PublicSubnetBRouteTable:
+    Description: PublicSubnetBRouteTableID
+    Value: !Ref PublicSubnetBRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetBRouteTableID"
+
+  PrivateSubnetARouteTable:
+    Description: PrivateSubnetARouteTableID
+    Value: !Ref PrivateSubnetARouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetARouteTableID"
+
+  PrivateSubnetBRouteTable:
+    Description: PrivateSubnetBRouteTableID
+    Value: !Ref PrivateSubnetBRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetBRouteTableID"
+  
+  ALBSecurityGroup:
+    Description: ALBSecurityGroup
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-ALBSecurityGroup"
