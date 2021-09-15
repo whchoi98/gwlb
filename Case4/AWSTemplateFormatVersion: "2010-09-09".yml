@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Add Transit Gateway and TG Basic Config"
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "VPC Parameters"
+        Parameters:
+         - GlobalVPCBlock
+Parameters:
+
+  GlobalVPCBlock:
+    Type: String
+    Default: 10.0.0.0/8
+    Description: "Global VPC CIDR Block"
+
+##############################################
+# Connect to the Transit Gateway#
+##############################################
+
+  TransitGatewayAttachment:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds:
+        - Fn::ImportValue: !Sub "SeoulVPC-TGW-Subnet-A"
+        - Fn::ImportValue: !Sub "SeoulVPC-TGW-Subnet-B"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Attach'
+      TransitGatewayId: !Ref TransitGateway
+      VpcId: !Ref VPC
+
+  TransitGatewayRouteTableAssociation:
+    Type: "AWS::EC2::TransitGatewayRouteTableAssociation"
+    Properties:
+      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTable
+  
+#  TransitGatewayRoute:
+#    Type: "AWS::EC2::TransitGatewayRoute"
+#    Properties:
+#      DestinationCidrBlock: 10.0.0.0/0
+#      TransitGatewayAttachmentId: !Ref TransitGatewayAttachment
+#      TransitGatewayRouteTableId: !Ref TransitGatewayRouteTable
+#  
+########################################
+#Public/Private Route table add for TGW#
+########################################
+  PublicAddRoute1:
+    DependsOn:
+      - TransitGateway
+      - TransitGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref GlobalVPCBlock
+      TransitGatewayId: !Ref TransitGateway
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  PribateAAddRoute1:
+    DependsOn:
+      - TransitGateway
+      - TransitGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref GlobalVPCBlock
+      TransitGatewayId: !Ref TransitGateway
+      RouteTableId: !Ref PrivateSubnetARouteTable
+
+  PribateBAddRoute1:
+    DependsOn:
+      - TransitGateway
+      - TransitGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref GlobalVPCBlock
+      TransitGatewayId: !Ref TransitGateway
+      RouteTableId: !Ref PrivateSubnetBRouteTable
+
+
+Resources:
+#########################
+# Create-TransitGateWay #
+#########################
+

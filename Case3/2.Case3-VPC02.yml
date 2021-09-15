@@ -532,7 +532,7 @@ Resources:
   ServerRoleSSM:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${AWS::StackName}-SSMRole'
+      RoleName: !Sub '${AWS::StackName}-Case3-SSMRole'
       Path: "/"
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"

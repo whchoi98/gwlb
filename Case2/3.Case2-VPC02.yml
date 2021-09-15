@@ -224,7 +224,7 @@ Resources:
   ServerRoleSSM:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${AWS::StackName}-SSMRole'
+      RoleName: !Sub '${AWS::StackName}-Case2-SSMRole'
       Path: "/"
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
