@@ -19,12 +19,12 @@ Parameters:
   AvailabilityZoneA:
     Description: "Choose AZ1 for your VPC."
     Type: AWS::EC2::AvailabilityZone::Name
-    Default: "ap-northeast-1a"
+    Default: "ap-northeast-2a"
 
   AvailabilityZoneB:
     Description: "Choose AZ2 for your VPC."
     Type: AWS::EC2::AvailabilityZone::Name
-    Default: "ap-northeast-1c"
+    Default: "ap-northeast-2c"
 
   VPCCIDRBlock:
     Type: String
