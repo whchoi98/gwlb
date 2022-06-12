@@ -19,7 +19,6 @@ Metadata:
 
 Parameters:
   AvailabilityZoneA:
-  AvailabilityZoneA:
     Description: "Choose AZ1 for your VPC."
     Type: AWS::EC2::AvailabilityZone::Name
 #    Default: "ap-northeast-1a"
