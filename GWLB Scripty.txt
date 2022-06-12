@@ -1,0 +1,161 @@
+GWLB Script
+################################
+Case1
+################################
+
+export KeyName=mykey
+echo "export KeyName=${KeyName}" | tee -a ~/.bash_profile
+
+export AvailabilityZoneA=ap-northeast-2a
+export AvailabilityZoneB=ap-northeast-2c
+export InstanceType=t3.small
+echo "export AvailabilityZoneA=${AvailabilityZoneA}" | tee -a ~/.bash_profile
+echo "export AvailabilityZoneB=${AvailabilityZoneB}" | tee -a ~/.bash_profile
+echo "export InstanceType=${InstanceType}" | tee -a ~/.bash_profile
+source ~/.bash_profile 
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "GWLBVPC" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/1.Case1-GWLBVPC.yml" \
+  --parameter-overrides "KeyPair=$KeyName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+export VPCEndpointServiceName=com.amazonaws.vpce.ap-northeast-2.vpce-svc-0aa6c7c10ec3efb2d
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC01" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/2.Case1-VPC01.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+    "VPCEndpointServiceName=$VPCEndpointServiceName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC02" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/2.Case1-VPC02.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+    "VPCEndpointServiceName=$VPCEndpointServiceName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC03" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/2.Case1-VPC03.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+    "VPCEndpointServiceName=$VPCEndpointServiceName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation delete-stack --stack-name VPC01
+aws cloudformation delete-stack --stack-name VPC02
+aws cloudformation delete-stack --stack-name VPC03
+aws cloudformation delete-stack --stack-name GWLBVPC
+
+################################
+Case2
+################################
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "GWLBVPC" \
+  --template-file "/home/ec2-user/environment/gwlb/Case2/1.Case2-GWLBVPC.yml" \
+  --parameter-overrides "KeyPair=$KeyName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+export VPCEndpointServiceName=com.amazonaws.vpce.ap-northeast-2.vpce-svc-029bf2a4c0c3da25b
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "N2SVPC" \
+  --template-file "/home/ec2-user/environment/gwlb/Case2/2.Case2-N2SVPC.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+    "VPCEndpointServiceName=$VPCEndpointServiceName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC01" \
+  --template-file "/home/ec2-user/environment/gwlb/Case2/3.Case2-VPC01.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC02" \
+  --template-file "/home/ec2-user/environment/gwlb/Case2/3.Case2-VPC02.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "GWLBTGW" \
+  --template-file "/home/ec2-user/environment/gwlb/Case2/4.Case2-GWLBTGW.yml" 
+
+aws cloudformation delete-stack --stack-name GWLBTGW
+aws cloudformation delete-stack --stack-name VPC01
+aws cloudformation delete-stack --stack-name VPC02
+aws cloudformation delete-stack --stack-name N2SVPC
+aws cloudformation delete-stack --stack-name GWLBVPC
+
+################################
+Case3
+################################
+
+export KeyName=mykey
+echo "export KeyName=${KeyName}" | tee -a ~/.bash_profile
+
+export AvailabilityZoneA=ap-northeast-2a
+export AvailabilityZoneB=ap-northeast-2c
+export InstanceType=t3.small
+echo "export AvailabilityZoneA=${AvailabilityZoneA}" | tee -a ~/.bash_profile
+echo "export AvailabilityZoneB=${AvailabilityZoneB}" | tee -a ~/.bash_profile
+echo "export InstanceType=${InstanceType}" | tee -a ~/.bash_profile
+source ~/.bash_profile 
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "GWLBVPC" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/1.Case1-GWLBVPC.yml" \
+  --parameter-overrides "KeyPair=$KeyName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+export VPCEndpointServiceName=com.amazonaws.vpce.ap-northeast-2.vpce-svc-0aa6c7c10ec3efb2d
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC01" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/2.Case1-VPC01.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+    "VPCEndpointServiceName=$VPCEndpointServiceName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC02" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/2.Case1-VPC02.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+    "VPCEndpointServiceName=$VPCEndpointServiceName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy \
+  --region ap-northeast-2 \
+  --stack-name "VPC03" \
+  --template-file "/home/ec2-user/environment/gwlb/Case1/2.Case1-VPC03.yml" \
+  --parameter-overrides \
+    "KeyPair=$KeyName" \
+    "VPCEndpointServiceName=$VPCEndpointServiceName" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation delete-stack --stack-name VPC01
+aws cloudformation delete-stack --stack-name VPC02
+aws cloudformation delete-stack --stack-name VPC03
+aws cloudformation delete-stack --stack-name GWLBVPC
