@@ -556,7 +556,6 @@ Resources:
 ###############################################################################
 # Create-Security-Group: VPC Security Group - HTTP, HTTPS, ICMP , SSH Permit #
 ###############################################################################
-
 PublicEC2SG:
     Type: AWS::EC2::SecurityGroup
     Properties:
