@@ -557,6 +557,33 @@ Resources:
 # Create-Security-Group: VPC Security Group - HTTP, HTTPS, ICMP , SSH Permit #
 ###############################################################################
 
+PublicEC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open-up ports for ICMP and SSH,HTTP/S from All network
+      GroupName: PublicEC2SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: 0.0.0.0/0
+          FromPort: "-1"
+          ToPort: "-1"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "22"
+          ToPort: "22"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "80"
+          ToPort: "80"
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: "443"
+          ToPort: "443"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicSG'
+
   PrivateEC2SG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -621,6 +648,178 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-SSMSG'
+
+##############################################
+# Create-Public-EC2: VPC Public EC2 Create #
+##############################################
+
+  PublicAInstance1:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetA
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      ImageId: !Ref LatestAmiId
+      PublicIpAddress: 10.1.11.101
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PublicEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-A-10.1.11.101'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql;
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            cd ~/
+            dd if=/dev/zero of=10G.dummy bs=1G count=10
+            exit       
+
+  PublicAInstance2:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetA
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      ImageId: !Ref LatestAmiId
+      PublicIpAddress: 10.1.11.102
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PublicEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-A-10.1.11.102'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql; 
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            cd ~/
+            dd if=/dev/zero of=10G.dummy bs=1G count=10
+            exit       
+
+  PublicBInstance1:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetB
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      ImageId: !Ref LatestAmiId
+      PublicIpAddress: 10.1.12.101
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PublicEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-B-10.1.12.101'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql; 
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            cd ~/
+            dd if=/dev/zero of=10G.dummy bs=1G count=10
+            exit
+
+  PublicBInstance2:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicSubnetB
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      ImageId: !Ref LatestAmiId
+      PublicIpAddress: 10.1.12.102
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - Ref: PublicEC2SG
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref InstanceProfileSSM
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda
+          Ebs: 
+            VolumeSize: 20
+            VolumeType: gp3
+            Iops: 3000
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Public-B-10.1.12.102'
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            sudo yum -y update;
+            sudo yum -y install yum-utils; 
+            sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm;
+            sudo yum -y install iotop iperf3 iptraf tcpdump git bash-completion; 
+            sudo yum -y install httpd php mysql php-mysql; 
+            sudo yum -y install python-pip;
+            sudo yum -y install nethogs iftop lnav nmon tmux wireshark vsftpd ftp golang;
+            sudo systemctl start httpd;
+            sudo systemctl enable httpd;
+            cd /var/www/html/;
+            sudo git clone https://github.com/whchoi98/ec2meta-webpage.git;
+            sudo systemctl restart httpd;
+            cd ~/
+            dd if=/dev/zero of=10G.dummy bs=1G count=10
+            exit
 
 ##############################################
 # Create-Private-EC2: VPC Private EC2 Create #
