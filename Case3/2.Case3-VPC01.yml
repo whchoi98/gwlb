@@ -658,7 +658,7 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnetA
       ImageId: !Ref LatestAmiId
-      PublicIpAddress: 10.1.11.101
+      PrivateIpAddress: 10.1.11.101
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PublicEC2SG
@@ -700,7 +700,7 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnetA
       ImageId: !Ref LatestAmiId
-      PublicIpAddress: 10.1.11.102
+      PrivateIpAddress: 10.1.11.102
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PublicEC2SG
@@ -742,7 +742,7 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnetB
       ImageId: !Ref LatestAmiId
-      PublicIpAddress: 10.1.12.101
+      PrivateIpAddress: 10.1.12.101
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PublicEC2SG
@@ -784,7 +784,7 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnetB
       ImageId: !Ref LatestAmiId
-      PublicIpAddress: 10.1.12.102
+      PrivateIpAddress: 10.1.12.102
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PublicEC2SG
