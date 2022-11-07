@@ -342,6 +342,7 @@ Resources:
             export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+            echo net.ipv4.ip_forward = 1 >> /etc/sysctl.conf
   
             # Webpage configuration
             sudo systemctl start httpd
@@ -425,6 +426,7 @@ Resources:
             export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+            echo net.ipv4.ip_forward = 1 >> /etc/sysctl.conf
   
             # Webpage configuration
             sudo systemctl start httpd
@@ -508,6 +510,7 @@ Resources:
             export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+            echo net.ipv4.ip_forward = 1 >> /etc/sysctl.conf
   
             # Webpage configuration
             sudo systemctl start httpd
@@ -591,6 +594,7 @@ Resources:
             export instance_ip=$(cat /home/ec2-user/iid |grep 'privateIp' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export instance_region=$(cat /home/ec2-user/iid |grep 'region' | awk -F': ' '{print $2}' | awk -F',' '{print $1}' | awk -F'"' '{print$2}')
             export gwlb_ip=$(aws --region $instance_region ec2 describe-network-interfaces --filters Name=vpc-id,Values=$instance_vpcid | jq ' .NetworkInterfaces[] | select(.AvailabilityZone=='$instance_az') | select(.InterfaceType=="gateway_load_balancer") |.PrivateIpAddress' -r)
+            echo net.ipv4.ip_forward = 1 >> /etc/sysctl.conf
   
             # Webpage configuration
             sudo systemctl start httpd
