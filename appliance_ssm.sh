@@ -13,3 +13,4 @@ echo "export Appliance_11_101=${Appliance_11_101}"| tee -a ~/.bash_profile
 echo "export Appliance_11_102=${Appliance_11_102}"| tee -a ~/.bash_profile
 echo "export Appliance_12_101=${Appliance_12_101}"| tee -a ~/.bash_profile
 echo "export Appliance_12_102=${Appliance_12_102}"| tee -a ~/.bash_profile
+source ~/.bash_profile
