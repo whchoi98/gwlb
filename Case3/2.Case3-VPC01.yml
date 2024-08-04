@@ -15,7 +15,7 @@ Metadata:
          - PublicSubnetBBlock
          - PrivateSubnetABlock
          - PrivateSubnetBBlock
-         - VPCEndpointServiceName
+         - VPCEndpointServiceName3
          - DefualtRoute
          - InstanceType
 
@@ -65,7 +65,7 @@ Parameters:
     Default: 10.1.22.0/24
     Description: "CidrBlock for AZ B private subnet B within the VPC"
   
-  VPCEndpointServiceName:
+  VPCEndpointServiceName3:
     Type: String
     Description: Check the name of the VPC Endpoint Service in the GWLB VPC. 
 
@@ -476,7 +476,7 @@ Resources:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPC
-      ServiceName: !Ref VPCEndpointServiceName
+      ServiceName: !Ref VPCEndpointServiceName3
       VpcEndpointType: GatewayLoadBalancer
       SubnetIds:
         - !Ref GWLBeSubnetA
@@ -485,7 +485,7 @@ Resources:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPC
-      ServiceName: !Ref VPCEndpointServiceName
+      ServiceName: !Ref VPCEndpointServiceName3
       VpcEndpointType: GatewayLoadBalancer
       SubnetIds:
         - !Ref GWLBeSubnetB
