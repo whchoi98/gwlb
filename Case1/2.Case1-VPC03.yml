@@ -71,10 +71,10 @@ Parameters:
 # Create-Keypair : EC2 Keypair #
 ################################
 
-  KeyPair:
-    Description: "Keypair to access the EC2 Instance"
-    Type: "AWS::EC2::KeyPair::KeyName"
-    Default: "Your KeyPair"
+#  KeyPair:
+#    Description: "Keypair to access the EC2 Instance"
+#    Type: "AWS::EC2::KeyPair::KeyName"
+#    Default: "Your KeyPair"
 
 ##########################
 # Create-AMI: EC2 AMI ID #
@@ -427,7 +427,7 @@ Resources:
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PrivateEC2SG
-      KeyName: !Ref KeyPair
+#      KeyName: !Ref KeyPair
       IamInstanceProfile: !Ref InstanceProfileSSM
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
@@ -467,7 +467,7 @@ Resources:
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PrivateEC2SG
-      KeyName: !Ref KeyPair
+#      KeyName: !Ref KeyPair
       IamInstanceProfile: !Ref InstanceProfileSSM
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
@@ -507,7 +507,7 @@ Resources:
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PrivateEC2SG
-      KeyName: !Ref KeyPair
+#      KeyName: !Ref KeyPair
       IamInstanceProfile: !Ref InstanceProfileSSM
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
@@ -547,7 +547,7 @@ Resources:
       InstanceType: !Ref InstanceType
       SecurityGroupIds: 
         - Ref: PrivateEC2SG
-      KeyName: !Ref KeyPair
+#      KeyName: !Ref KeyPair
       IamInstanceProfile: !Ref InstanceProfileSSM
       BlockDeviceMappings: 
         - DeviceName: /dev/xvda
