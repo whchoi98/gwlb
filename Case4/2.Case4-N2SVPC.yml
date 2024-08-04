@@ -21,7 +21,7 @@ Metadata:
          - VPC1CIDRBlock
          - VPC2CIDRBlock
          - VPC3CIDRBlock
-         - VPCEndpointServiceName
+         - VPCEndpointServiceName4
          - InstanceType
          - VPC01-PrivateAInstance1
          - VPC01-PrivateAInstance2
@@ -147,7 +147,7 @@ Parameters:
     Default: 10.2.22.102
     Description: "VPC2 PrivateB Instance2 IP address"
 
-  VPCEndpointServiceName:
+  VPCEndpointServiceName4:
     Type: String
     Description: Check the name of the VPC Endpoint Service in the GWLB VPC. 
 
@@ -638,7 +638,7 @@ Resources:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPC
-      ServiceName: !Ref VPCEndpointServiceName
+      ServiceName: !Ref VPCEndpointServiceName4
       VpcEndpointType: GatewayLoadBalancer
       SubnetIds:
         - !Ref GWLBeSubnetA
@@ -647,7 +647,7 @@ Resources:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPC
-      ServiceName: !Ref VPCEndpointServiceName
+      ServiceName: !Ref VPCEndpointServiceName4
       VpcEndpointType: GatewayLoadBalancer
       SubnetIds:
         - !Ref GWLBeSubnetB
