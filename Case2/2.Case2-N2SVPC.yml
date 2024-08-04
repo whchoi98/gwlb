@@ -19,7 +19,7 @@ Metadata:
          - VPC1CIDRBlock
          - VPC2CIDRBlock
          - VPC3CIDRBlock
-         - VPCEndpointServiceName
+         - VPCEndpointServiceName2
          - InstanceType
 
 ##################################################################################################################################
@@ -92,7 +92,7 @@ Parameters:
     Default: 10.3.0.0/16
     Description: "Enter desired CIDR to VPC3 route"
 
-  VPCEndpointServiceName:
+  VPCEndpointServiceName2:
     Type: String
     Description: Check the name of the VPC Endpoint Service in the GWLB VPC. 
 
@@ -508,7 +508,7 @@ Resources:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPC
-      ServiceName: !Ref VPCEndpointServiceName
+      ServiceName: !Ref VPCEndpointServiceName2
       VpcEndpointType: GatewayLoadBalancer
       SubnetIds:
         - !Ref PrivateSubnetA
@@ -517,7 +517,7 @@ Resources:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPC
-      ServiceName: !Ref VPCEndpointServiceName
+      ServiceName: !Ref VPCEndpointServiceName2
       VpcEndpointType: GatewayLoadBalancer
       SubnetIds:
         - !Ref PrivateSubnetB
