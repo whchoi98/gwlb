@@ -1,17 +1,16 @@
 #!/bin/bash
 
-# Function to get ENI IDs for a given ALB
-get_alb_eni_ids() {
+# Function to get subnet IDs for a given ALB
+get_alb_subnet_ids() {
     local alb_name=$1
-    local alb_arn=$(aws elbv2 describe-load-balancers --names $alb_name --query "LoadBalancers[0].LoadBalancerArn" --output text)
-    local eni_ids=$(aws elbv2 describe-load-balancer-attributes --load-balancer-arn $alb_arn --query "Attributes[?Key=='subnet-ids'].Value[]" --output text)
-    echo $eni_ids
+    local subnet_ids=$(aws elbv2 describe-load-balancers --names $alb_name --query "LoadBalancers[0].AvailabilityZones[*].SubnetId" --output text)
+    echo $subnet_ids
 }
 
 # Function to get ENIs in a subnet
 get_subnet_eni_ids() {
     local subnet_id=$1
-    local eni_ids=$(aws ec2 describe-network-interfaces --filters "Name=subnet-id,Values=$subnet_id" "Name=description,Values=*elasticloadbalancing*" --query "NetworkInterfaces[*].NetworkInterfaceId" --output text)
+    local eni_ids=$(aws ec2 describe-network-interfaces --filters "Name=subnet-id,Values=$subnet_id" "Name=description,Values=*ELB*" --query "NetworkInterfaces[*].NetworkInterfaceId" --output text)
     echo $eni_ids
 }
 
@@ -29,7 +28,7 @@ alb_names=("VPC01-alb" "VPC02-alb")
 # Iterate over each ALB name
 for alb_name in "${alb_names[@]}"; do
     echo "ALB Name: $alb_name"
-    subnet_ids=$(get_alb_eni_ids $alb_name)
+    subnet_ids=$(get_alb_subnet_ids $alb_name)
     if [[ -n "$subnet_ids" ]]; then
         for subnet_id in $subnet_ids; do
             eni_ids=$(get_subnet_eni_ids $subnet_id)
